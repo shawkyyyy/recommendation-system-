@@ -20,11 +20,11 @@ scikit-learn: pip install scikit-learn
 The dataset used in the Python Flask application is a collection of books that includes information such as the book title, author, book category, book description and book_id. The dataset is in CSV format and is loaded into a pandas DataFrame object in the application.
 In order to use the dataset for machine learning models and book recommendations, the dataset is preprocessed in the Python Flask application. The preprocessing steps include:
 
-### Combining Features: The title, author, BookCategory, and Book_Description columns are combined into a single column called combined_features. This is done to create a bag of words representation of the text data.
+#### Combining Features: The title, author, BookCategory, and Book_Description columns are combined into a single column called combined_features. This is done to create a bag of words representation of the text data.
 
-### One-Hot Encoding: The BookCategory column is one-hot encoded, creating a set of new columns for each book category with binary values indicating whether a book belongs to that category or not. This is done to convert categorical data into numerical data that can be used in machine learning models.
+#### One-Hot Encoding: The BookCategory column is one-hot encoded, creating a set of new columns for each book category with binary values indicating whether a book belongs to that category or not. This is done to convert categorical data into numerical data that can be used in machine learning models.
 
-### Calculating Cosine Similarity Scores: The combined_features column is used to calculate cosine similarity scores between each pair of books in the dataset. Cosine similarity is a measure of similarity between two vectors, and in this case, it is used to measure the similarity between the bag of words representations of the book descriptions.
+#### Calculating Cosine Similarity Scores: The combined_features column is used to calculate cosine similarity scores between each pair of books in the dataset. Cosine similarity is a measure of similarity between two vectors, and in this case, it is used to measure the similarity between the bag of words representations of the book descriptions.
 
 The preprocessed dataset is used to train machine learning models for book recommendations, including a decision tree and a KNN model. The one-hot encoded book categories are used as features in these models, and they are trained to predict the book categories of new books based on their features. The cosine similarity scores are used to provide content-based recommendations to users, based on the similarity between their borrowing history and the book descriptions in the dataset.
 
