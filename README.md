@@ -1,3 +1,1 @@
-# recommendation-system-
-A recommendation system using AI 
-Content Based Recommender System recommends books similar to the books user borrowed.
+Introduction This program is a Python Flask application that provides book recommendations and allows users to borrow books. It uses a dataset of books that includes information such as the title, author, book category, and book description. The program preprocesses the dataset by combining features, one-hot encoding book categories, and calculating cosine similarity scores for content-based recommendation. It then trains a decision tree and a KNN model using the one-hot encoded book categories as features. The program provides API endpoints that allow users to borrow books, get their borrowing history, and get book recommendations based on their borrowing history. The program uses Flask, pandas, numpy, scikit-learn, and other Python libraries to implement these functionalities.
