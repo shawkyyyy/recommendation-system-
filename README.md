@@ -28,7 +28,54 @@ In order to use the dataset for machine learning models and book recommendations
 
 The preprocessed dataset is used to train machine learning models for book recommendations, including a decision tree and a KNN model. The one-hot encoded book categories are used as features in these models, and they are trained to predict the book categories of new books based on their features. The cosine similarity scores are used to provide content-based recommendations to users, based on the similarity between their borrowing history and the book descriptions in the dataset.
 
+# Flask Routes
 
+### /get_books - GET method:
+
+This route is used to get book recommendations for a user.
+The route expects a JSON request with a user_id field that contains the ID of the user for whom recommendations are being requested.
+If the user has borrowed books before, the route calls the get_last_borrowed_recommendations function to get recommendations based on the last book they borrowed.
+If the user has not borrowed any books before, the route generates random recommendations using the recommend_books function and the Decision Tree algorithm.
+The recommended books are returned as a JSON response.
+
+```
+{
+    "user_id": 1,
+    }
+
+```
+
+### /borrow - POST method:
+
+This route is used to borrow a book.
+The route expects a JSON request with user_id, title, and BookCategory fields that contain the ID of the user borrowing the book, the title of the book being borrowed, and the book category of the book being borrowed, respectively.
+The history DataFrame is updated with the borrowed book information.
+A success message is returned as a JSON response.
+
+```
+{
+    "user_id": 1,
+    "title": "The Black Maria"
+    }
+
+```
+
+
+### /post_history - POST method:
+
+This route is used to get the borrowing history of a user.
+The route expects a JSON request with a user_id field that contains the ID of the user whose borrowing history is being requested.
+The history DataFrame is filtered to only include rows where the user_id matches the requested user ID.
+The filtered history is returned as a JSON response.
+To use these routes, you would need to make requests to the appropriate URL with the appropriate HTTP method and JSON data. For example, to get book recommendations for a user with ID 123, you would send a GET request to the URL http://localhost:5000/get_books with a JSON payload of { "user_id": "123" }. The Flask application would then return a JSON response with a list of recommended books.
+
+```
+{
+    "user_id": 1
+    
+    }
+
+```
 
 # How to run the project?
 1. Clone or download the project repository to your local machine.
