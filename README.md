@@ -11,8 +11,11 @@ scikit-learn: A library for machine learning in Python. It provides a wide range
 To download these libraries, you can use pip, which is a package manager for Python. Here are the commands to download the libraries:
 
 Flask: pip install Flask
+
 pandas: pip install pandas
+
 numpy: pip install numpy
+
 scikit-learn: pip install scikit-learn
 
 
