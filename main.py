@@ -79,11 +79,13 @@ def borrow():
     data = request.get_json()
     user_id = data['user_id']
     title = data['title']
-    book_category = data['BookCategory']
 
     # Add borrowed book to the history dataframe
     global history
-    history = history.append({'user_id': user_id, 'title': title, 'BookCategory': book_category}, ignore_index=True)
+    history = history.append({'user_id': user_id, 'title': title}, ignore_index=True)
+
+    # Save updated history to a CSV file
+    history.to_csv('C:\history.csv', index=False)
 
     # Return success message as a JSON response
     return jsonify({'message': 'Book borrowed successfully.'}), 200
