@@ -4,8 +4,11 @@ This program is a Python Flask application that provides book recommendations an
 # Libraries
 
 Flask: A micro web framework for building web applications in Python.
+
 pandas: A library for data manipulation and analysis. It provides data structures and functions for working with structured data, including tabular data.
+
 numpy: A library for numerical computation in Python. It provides functions for working with arrays and matrices, as well as mathematical functions and random number generation.
+
 scikit-learn: A library for machine learning in Python. It provides a wide range of machine learning algorithms and tools for data preprocessing, model selection, and evaluation.
 
 To download these libraries, you can use pip, which is a package manager for Python. Here are the commands to download the libraries:
