@@ -45,6 +45,34 @@ The recommended books are returned as a JSON response.
 
 ```
 
+```
+{
+    "recommended_books": [
+        [
+            "A Clash of Kings (A Song of Ice and Fire #2)",
+            0.6388698797869515
+        ],
+        [
+            "The Name of God is Mercy",
+            0.635667270027247
+        ],
+        [
+            "The Book of Mormon",
+            0.6342504698290696
+        ],
+        [
+            "Becoming Wise: An Inquiry into the Mystery and Art of Living",
+            0.6305405544650841
+        ],
+        [
+            "The Age of Genius: The Seventeenth Century and the Birth of the Modern Mind",
+            0.6304301557490736
+        ]
+    ]
+}
+```
+
+
 ### /borrow - POST method:
 
 This route is used to borrow a book.
@@ -58,6 +86,12 @@ A success message is returned as a JSON response.
     "title": "The Black Maria"
     }
 
+```
+
+```
+{
+    "message": "Book borrowed successfully."
+}
 ```
 
 
@@ -75,6 +109,13 @@ To use these routes, you would need to make requests to the appropriate URL with
     
     }
 
+
+
+```
+
+```
+[{"user_id":1,"title":"Olio","BookCategory":"Crime, Thriller & Mystery"},{"user_id":1,"title":"The Black
+Maria","BookCategory":null}]
 ```
 
 # How to run the project?
