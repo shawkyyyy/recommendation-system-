@@ -46,6 +46,7 @@ The recommended books are returned as a JSON response.
 ```
 
 ```
+Output:
 {
     "recommended_books": [
         [
@@ -89,6 +90,7 @@ A success message is returned as a JSON response.
 ```
 
 ```
+Output:
 {
     "message": "Book borrowed successfully."
 }
@@ -114,6 +116,7 @@ To use these routes, you would need to make requests to the appropriate URL with
 ```
 
 ```
+Output:
 [{"user_id":1,"title":"Olio","BookCategory":"Crime, Thriller & Mystery"},{"user_id":1,"title":"The Black
 Maria","BookCategory":null}]
 ```
