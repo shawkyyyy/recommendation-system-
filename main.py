@@ -10,8 +10,10 @@ from sklearn.model_selection import train_test_split
 
 app = Flask(__name__)
 
-# Load dataset
+# Load book dataset and initialize history dataframe
 dataset = pd.read_csv('C:\dataset.csv')
+history = pd.DataFrame(columns=['user_id', 'title', 'BookCategory'])
+
 
 # Combine features
 dataset['features'] = dataset['title'] + ' ' + dataset['author'] + ' ' + dataset['BookCategory'] + ' ' + dataset[
@@ -42,7 +44,7 @@ knn_classifier.fit(knn_features[train_df.index], train_df['title'])
 history = pd.DataFrame(columns=['user_id', 'title', 'BookCategory'])
 
 # Function to get recommendations based on the user's last borrowing
-def get_last_borrowed_recommendations(user_id):
+def get_last_borrowed_recommendations(user_id, history):
     # Get the user's last borrowed book
     last_borrowed_book = history[history['user_id'] == user_id].tail(1)['title'].values[0]
 
@@ -62,7 +64,7 @@ def get_books():
     # Check if the user has borrowed books before
     if user_id in history['user_id'].unique():
         # Get recommendations based on the last borrowing
-        recommended_books = get_last_borrowed_recommendations(user_id)
+        recommended_books = get_last_borrowed_recommendations(user_id, history)
     else:
         # Generate random recommendations using any algorithm of your choice
         # For example, you can use the Decision Tree algorithm
@@ -79,10 +81,11 @@ def borrow():
     data = request.get_json()
     user_id = data['user_id']
     title = data['title']
+    book_category = dataset.loc[dataset['title'] == title]['BookCategory'].values[0]
 
     # Add borrowed book to the history dataframe
     global history
-    history = history.append({'user_id': user_id, 'title': title}, ignore_index=True)
+    history = history.append({'user_id': user_id, 'title': title, 'BookCategory': book_category}, ignore_index=True)
 
     # Save updated history to a CSV file
     history.to_csv('C:\history.csv', index=False)
