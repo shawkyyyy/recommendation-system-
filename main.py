@@ -40,8 +40,12 @@ dt_classifier.fit(dt_features[train_df.index], train_df['title'])
 knn_classifier = KNeighborsClassifier()
 knn_classifier.fit(knn_features[train_df.index], train_df['title'])
 
-# Initialize empty history dataframe
-history = pd.DataFrame(columns=['user_id', 'title', 'BookCategory'])
+# Initialize empty history dataframe or load from history.csv
+try:
+    history = pd.read_csv('C:\history.csv')
+except FileNotFoundError:
+    history = pd.DataFrame(columns=['user_id', 'title', 'BookCategory'])
+
 
 # Function to get recommendations based on the user's last borrowing
 def get_last_borrowed_recommendations(user_id, history):
