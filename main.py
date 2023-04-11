@@ -55,8 +55,8 @@ def get_books():
         recommended_books = get_last_borrowed_recommendations(user_id, history)
     else:
         recommended_books = recommend_books('', algorithm, history)
-
-    return jsonify(recommended_books=recommended_books), 200
+    result = jsonify(recommended_books=recommended_books), 200
+    return result
 
 def get_last_borrowed_recommendations(user_id, history):
     # Get the user's last borrowed book
