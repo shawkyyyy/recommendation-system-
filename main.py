@@ -7,6 +7,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
+import os
 
 app = Flask(__name__)
 
@@ -17,10 +18,11 @@ with open('config.json') as f:
 algorithm = config['algorithm']
 
 dataset = pd.read_csv('C:\dataset.csv')
+history_file = 'C:\history.csv'
+
 history = pd.DataFrame(columns=['user_id', 'title', 'BookCategory'])
 
-dataset['features'] = dataset['title'] + ' ' + dataset['author'] + ' ' + dataset['BookCategory'] + ' ' + dataset[
-'Book_Description']
+dataset['features'] = dataset['title'] + ' ' + dataset['author'] + ' ' + dataset['BookCategory'] + ' ' + dataset['Book_Description']
 
 encoder = OneHotEncoder()
 book_categories = encoder.fit_transform(dataset[['BookCategory']])
@@ -38,10 +40,8 @@ dt_classifier.fit(dt_features[train_df.index], train_df['title'])
 knn_classifier = KNeighborsClassifier()
 knn_classifier.fit(knn_features[train_df.index], train_df['title'])
 
-try:
-    history = pd.read_csv('C:\history.csv')
-except FileNotFoundError:
-    history = pd.DataFrame(columns=['user_id', 'title', 'BookCategory'])
+if os.path.isfile(history_file):
+    history = pd.read_csv(history_file)
 
 @app.route('/get_books', methods=['POST'])
 def get_books():
@@ -119,11 +119,12 @@ def recommend_books(title, algorithm, history):
         predicted_titles = knn_classifier.kneighbors(book_category_encoded, n_neighbors=11)[1][0][1:]
 
         # Convert the predicted titles to a list and remove the given title if it is in the list
-    recommended_books = list(train_df['title'].iloc[predicted_titles])
-    if title in recommended_books:
-        recommended_books.remove(title)
+        recommended_books = list(train_df['title'].iloc[predicted_titles])
+        if title in recommended_books:
+            recommended_books.remove(title)
 
-# Return the top 5 recommended books
+    # Return the top 5 recommended books
+
     return recommended_books[:5]
 
 if __name__ == '__main__':
