@@ -8,6 +8,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 import os
+import mysql.connector
+
 
 app = Flask(__name__)
 
@@ -16,6 +18,15 @@ with open('config.json') as f:
     config = json.load(f)
 
 algorithm = config['algorithm']
+
+# Connect to the MySQL database
+mydb = mysql.connector.connect(
+  host="localhost",
+  user="yourusername",
+  password="yourpassword",
+  database="yourdatabase"
+)
+
 
 dataset = pd.read_csv('C:\dataset.csv')
 history_file = 'C:\history.csv'
