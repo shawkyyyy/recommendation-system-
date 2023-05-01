@@ -1,145 +1,124 @@
-from flask import Flask, request, jsonify, json
-import pandas as pd
+import json
+import os
+
 import numpy as np
+import pandas as pd
+import pymysql
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.model_selection import train_test_split
-import os
-import mysql.connector
+from flask import Flask, jsonify, request
 
-
+# Initialize the Flask app
 app = Flask(__name__)
 
-# Load the configuration from the config.json file
+# Load configuration from a file
 with open('config.json') as f:
     config = json.load(f)
 
-algorithm = config['algorithm']
+# Set the algorithm to use
+algorithm = config.get('algorithm', 'cosine_similarity')
 
-# Connect to the MySQL database
-mydb = mysql.connector.connect(
-  host="localhost",
-  user="yourusername",
-  password="yourpassword",
-  database="yourdatabase"
+# Load the book data from a MySQL database
+conn = pymysql.connect(
+    host='localhost',
+    user='root',
+    password='123',
+    db='slbms'
 )
 
+cursor = conn.cursor()
 
-dataset = pd.read_csv('C:\dataset.csv')
-history_file = 'C:\history.csv'
+# Modify the SQL query to include a left join with the "reservation" table
+cursor.execute("""
+SELECT book.bookTitle, author.authorName, genre.genreName, book.numberOfPages
+FROM book
+JOIN books_authors ON book.id = books_authors.bookId
+JOIN author ON books_authors.authorId = author.id
+JOIN books_genres ON book.id = books_genres.bookId
+JOIN genre ON books_genres.genreId = genre.id
+JOIN book_stock ON book_stock.bookId = book.id
+LEFT JOIN reservation ON reservation.bookStockIdId = book_stock.id
+""")
 
-history = pd.DataFrame(columns=['user_id', 'title', 'BookCategory'])
+# Load the book data into a pandas DataFrame
+book_data = pd.DataFrame(cursor.fetchall(), columns=['title', 'author', 'category', 'num_pages'])
 
-dataset['features'] = dataset['title'] + ' ' + dataset['author'] + ' ' + dataset['BookCategory'] + ' ' + dataset['Book_Description']
-
+# Preprocess the dataset
 encoder = OneHotEncoder()
-book_categories = encoder.fit_transform(dataset[['BookCategory']])
+book_categories = encoder.fit_transform(book_data[['category']])
 dt_features = book_categories
 knn_features = book_categories
 
-cm = CountVectorizer().fit_transform(dataset['features'])
+cm = CountVectorizer().fit_transform(
+    book_data['title'] + ' ' + book_data['author'] + ' ' + book_data['category'])
 cs = cosine_similarity(cm)
 
-train_df, test_df = train_test_split(dataset, test_size=0.2, random_state=42)
-
+# Train the models on the entire dataset
 dt_classifier = DecisionTreeClassifier()
-dt_classifier.fit(dt_features[train_df.index], train_df['title'])
+dt_classifier.fit(dt_features, book_data['title'])
 
 knn_classifier = KNeighborsClassifier()
-knn_classifier.fit(knn_features[train_df.index], train_df['title'])
+knn_classifier.fit(knn_features, book_data['title'])
 
+# Load the borrowing history from a CSV file
+history_file = 'history.csv'
 if os.path.isfile(history_file):
     history = pd.read_csv(history_file)
+else:
+    history = pd.DataFrame(columns=['user_id', 'title', 'category'])
 
+
+# Define the API endpoint to get book recommendations
 @app.route('/get_books', methods=['POST'])
 def get_books():
-    # Parse JSON request data
+    # Parse the JSON request data
     data = request.get_json()
-    user_id = data['user_id']
+    user_id = data.get('user_id')
 
-    # Check if the user has borrowed books before
-    if user_id in history['user_id'].unique():
-        # Get recommendations based on the last borrowing
-        recommended_books = get_last_borrowed_recommendations(user_id, history)
+    # Check if the user has made any reservations before
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM reservation WHERE userIdId = %s", (user_id,))
+    reservations = cursor.fetchall()
+
+    if reservations:
+        borrow_history = [row[3] for row in reservations]
+        borrow_history_idx = [book_data.index[book_data['title'] == book][0] for book in borrow_history]
+        borrow_history_scores = np.sum(cs[borrow_history_idx, :], axis=0)
+        cf_top_idx = np.argsort(borrow_history_scores)[::-1][:5]
+        cf_top_books = list(book_data.iloc[cf_top_idx]['title'])
+
+        # Combine the top recommendations from each algorithm
+        top_books = list(set(cf_top_books))
     else:
-        recommended_books = recommend_books('', algorithm, history)
-    result = jsonify(recommended_books=recommended_books), 200
-    return result
+        # User has not made any reservations before, recommend random books
+        cursor.execute("SELECT bookTitle FROM book ORDER BY RAND() LIMIT 5")
+        random_books = [row[0] for row in cursor.fetchall()]
 
-def get_last_borrowed_recommendations(user_id, history):
-    # Get the user's last borrowed book
-    last_borrowed_book = history[history['user_id'] == user_id].tail(1)['title'].values[0]
+        top_books = random_books
 
-    # Use content-based filtering to recommend similar books
-    recommended_books = recommend_books(last_borrowed_book, 'content_based', history)
+    # Return the recommended books
+    return jsonify({'books': top_books})
 
-    return recommended_books
 
-def recommend_books(title, algorithm, history):
-    # Initialize an empty list to store recommended books
-    recommended_books = []
+# Define the API endpoint to record a book borrowing event
+@app.route('/borrow_book', methods=['POST'])
+def borrow_book():
+    # Parse the JSON request data
+    data = request.get_json()
+    user_id = data.get('user_id')
+    title = data.get('title')
+    category = data.get('category')
 
-    # Get the index of the book with the given title
-    book_index = dataset[dataset['title'] == title].index.values[0]
+    # Record the borrowing event in the borrowing history
+    history.loc[len(history)] = [user_id, title, category]
+    history.to_csv(history_file, index=False)
 
-    if algorithm == 'content_based':
-        # Use content-based filtering to recommend similar books
-        # Get the cosine similarity scores of the book with other books
-        scores = list(enumerate(cs[book_index]))
+    return jsonify({'status': 'success'})
 
-        # Sort the scores in descending order
-        scores = sorted(scores, key=lambda x: x[1], reverse=True)
-
-        # Get the top 10 most similar books
-        top_scores = scores[1:11]
-
-        # Get the indices of the top 10 most similar books
-        top_indices = [i[0] for i in top_scores]
-
-        # Get the titles of the top 10 most similar books
-        recommended_books = list(dataset['title'].iloc[top_indices].values)
-
-    elif algorithm == 'decision_tree':
-        # Use Decision Tree to recommend books
-        # Get the book category of the given title
-        book_category = dataset[dataset['title'] == title]['BookCategory'].values[0]
-
-        # One-hot encode the book category
-        book_category_encoded = encoder.transform([[book_category]])
-
-        # Predict the titles of the recommended books using Decision Tree
-        predicted_titles = dt_classifier.predict(book_category_encoded)
-
-        # Convert the predicted titles to a list and remove the given title if it is in the list
-        recommended_books = list(predicted_titles)
-        if title in recommended_books:
-            recommended_books.remove(title)
-
-    elif algorithm == 'knn':
-        # Use KNN to recommend books
-        # Get the book category of the given title
-        book_category = dataset[dataset['title'] == title]['BookCategory'].values[0]
-
-        # One-hot encode the book category
-        book_category_encoded = encoder.transform([[book_category]])
-
-        # Predict the titles of the recommended books using KNN
-        predicted_titles = knn_classifier.kneighbors(book_category_encoded, n_neighbors=11)[1][0][1:]
-
-        # Convert the predicted titles to a list and remove the given title if it is in the list
-        recommended_books = list(train_df['title'].iloc[predicted_titles])
-        if title in recommended_books:
-            recommended_books.remove(title)
-
-    # Return the top 5 recommended books
-
-    return recommended_books[:5]
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
