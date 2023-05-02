@@ -20,7 +20,7 @@ with open('config.json') as f:
     config = json.load(f)
 
 # Set the algorithm to use
-algorithm = config.get('algorithm', 'cosine_similarity')
+algorithm = config.get('algorithm', 'knn')
 
 # Load the book data from a MySQL database
 conn = pymysql.connect(
@@ -34,7 +34,7 @@ cursor = conn.cursor()
 
 # Modify the SQL query to include a left join with the "reservation" table
 cursor.execute("""
-SELECT book.bookTitle, author.authorName, genre.genreName, book.numberOfPages
+SELECT book.id, book.bookTitle, author.authorName, genre.genreName, book.editionNumber, book.numberOfPages, book.copyWriteYear
 FROM book
 JOIN books_authors ON book.id = books_authors.bookId
 JOIN author ON books_authors.authorId = author.id
@@ -45,7 +45,7 @@ LEFT JOIN reservation ON reservation.bookStockIdId = book_stock.id
 """)
 
 # Load the book data into a pandas DataFrame
-book_data = pd.DataFrame(cursor.fetchall(), columns=['title', 'author', 'category', 'num_pages'])
+book_data = pd.DataFrame(cursor.fetchall(), columns=['id', 'title', 'author', 'category', 'edition_number', 'num_pages', 'copywrite_year'])
 
 # Preprocess the dataset
 encoder = OneHotEncoder()
@@ -89,14 +89,14 @@ def get_books():
         borrow_history_idx = [book_data.index[book_data['title'] == book][0] for book in borrow_history]
         borrow_history_scores = np.sum(cs[borrow_history_idx, :], axis=0)
         cf_top_idx = np.argsort(borrow_history_scores)[::-1][:5]
-        cf_top_books = list(book_data.iloc[cf_top_idx]['title'])
+        cf_top_books = list(book_data.iloc[cf_top_idx][['id', 'title', 'author', 'category', 'edition_number', 'num_pages', 'copywrite_year']])
 
         # Combine the top recommendations from each algorithm
-        top_books = list(set(cf_top_books))
+        top_books = cf_top_books
     else:
         # User has not made any reservations before, recommend random books
-        cursor.execute("SELECT bookTitle FROM book ORDER BY RAND() LIMIT 5")
-        random_books = [row[0] for row in cursor.fetchall()]
+        cursor.execute("SELECT id, bookTitle,copyWriteYear, subject, editionNumber,numberOfPages FROM book ORDER BY RAND() LIMIT 7")
+        random_books = [row for row in cursor.fetchall()]
 
         top_books = random_books
 
