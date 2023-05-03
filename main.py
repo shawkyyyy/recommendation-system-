@@ -33,7 +33,7 @@ JOIN author ON books_authors.authorId = author.id
 JOIN books_genres ON book.id = books_genres.bookId
 JOIN genre ON books_genres.genreId = genre.id
 JOIN book_stock ON book_stock.bookId = book.id
-LEFT JOIN reservation ON reservation.bookStockIdId = book_stock.id
+LEFT JOIN reservation ON reservation.bookStockId = book_stock.id
 """)
 
 # Load the book data into a pandas DataFrame
@@ -53,7 +53,7 @@ def get_books():
 
     # Check if the user has made any reservations before
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM reservation WHERE userIdId = %s", (user_id,))
+    cursor.execute("SELECT * FROM reservation WHERE userId = %s", (user_id,))
     reservations = cursor.fetchall()
 
     if reservations:
@@ -101,7 +101,7 @@ def borrow_book():
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM book_stock WHERE bookId = (SELECT id FROM book WHERE bookTitle = %s) AND status = 'AVAILABLE' LIMIT 1", (title,))
     book_stock_id = cursor.fetchone()[0]
-    cursor.execute("INSERT INTO reservation (userIdId, bookStockIdId, reservationDate) VALUES (%s, %s, NOW())", (user_id, book_stock_id))
+    cursor.execute("INSERT INTO reservation (userIdId, bookStockId, reservationDate) VALUES (%s, %s, NOW())", (user_id, book_stock_id))
     conn.commit()
 
     return jsonify({'status': 'success'})
@@ -114,15 +114,15 @@ def update_config():
     algorithm_id = data.get('algorithmId')
 
     # Update the configuration settings for the recommendation algorithm
-    if algorithm_id == '1':
+    if algorithm_id == 1:
         # Update configuration settings for content-based recommendation algorithm
         # ...
         return jsonify({'success': True})
-    elif algorithm_id == '2':
+    elif algorithm_id == 2:
         # Update configuration settings for decision tree recommendation algorithm
         # ...
         return jsonify({'success': True})
-    elif algorithm_id == '3':
+    elif algorithm_id == 3:
         # Update configuration settings for k-NN recommendation algorithm
         # ...
         return jsonify({'success': True})
