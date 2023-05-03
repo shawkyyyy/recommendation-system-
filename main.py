@@ -9,7 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from flask import Flask, jsonify, request
 
 # Initialize the Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_folder="../build", static_url_path="/")
 
 # Load configuration from a file
 with open('config.json') as f:
@@ -17,12 +17,11 @@ with open('config.json') as f:
 
 # Load the book data from a MySQL database
 conn = pymysql.connect(
-    host='localhost',
-    user='root',
-    password='123',
-    db='slbms'
+    host=config['db_host'],
+    user=config['db_user'],
+    password=config['db_password'],
+    db=config['db_name']
 )
-
 cursor = conn.cursor()
 
 # Modify the SQL query to include a left join with the "reservation" table
@@ -98,7 +97,7 @@ def borrow_book():
     title = data.get('title')
     category = data.get('category')
 
-# Record the borrowing event in the reservation table
+    # Record the borrowing event in the reservation table
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM book_stock WHERE bookId = (SELECT id FROM book WHERE bookTitle = %s) AND status = 'AVAILABLE' LIMIT 1", (title,))
     book_stock_id = cursor.fetchone()[0]
@@ -106,6 +105,38 @@ def borrow_book():
     conn.commit()
 
     return jsonify({'status': 'success'})
+
+# Define the API endpoint to update the recommendation algorithm configuration
+@app.route('/update_config', methods=['POST'])
+def update_config():
+    # Parse the JSON request data
+    data = request.get_json()
+    algorithm_id = data.get('algorithmId')
+
+    # Update the configuration settings for the recommendation algorithm
+    if algorithm_id == '1':
+        # Update configuration settings for content-based recommendation algorithm
+        # ...
+        return jsonify({'success': True})
+    elif algorithm_id == '2':
+        # Update configuration settings for decision tree recommendation algorithm
+        # ...
+        return jsonify({'success': True})
+    elif algorithm_id == '3':
+        # Update configuration settings for k-NN recommendation algorithm
+        # ...
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False})
+
+# Serve the React.js app
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + "/" + path):
+        return app.send_static_file(path)
+    else:
+        return app.send_static_file("index.html")
 
 if __name__ == '__main__':
     app.run(debug=True)
