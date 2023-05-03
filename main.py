@@ -51,6 +51,25 @@ def get_books():
     data = request.get_json()
     user_id = data.get('user_id')
 
+    if app.config['RECOMMENDATION_ALGORITHM'] == 'content-based':
+        # Use content-based recommendation algorithm
+        # ...
+        # Return recommended books using content-based algorithm
+        pass
+    elif app.config['RECOMMENDATION_ALGORITHM'] == 'decision-tree':
+        # Use decision-tree recommendation algorithm
+        # ...
+        # Return recommended books using decision-tree algorithm
+        pass
+    elif app.config['RECOMMENDATION_ALGORITHM'] == 'k-nn':
+        # Use k-NN recommendation algorithm
+        # ...
+        # Return recommended books using k-NN algorithm
+        pass
+    else:
+        # Invalid recommendation algorithm selected
+        return jsonify({'error': 'Invalid recommendation algorithm selected'})
+
     # Check if the user has made any reservations before
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM reservation WHERE userId = %s", (user_id,))
@@ -87,7 +106,6 @@ def get_books():
         # Return the recommended books
         return jsonify({'books': random_books})
 
-
 # Define the API endpoint to record a book borrowing event
 @app.route('/borrow_book', methods=['POST'])
 def borrow_book():
@@ -107,27 +125,38 @@ def borrow_book():
     return jsonify({'status': 'success'})
 
 # Define the API endpoint to update the recommendation algorithm configuration
+# Define the API endpoint to update the recommendation algorithm configuration
 @app.route('/update_config', methods=['POST'])
 def update_config():
     # Parse the JSON request data
     data = request.get_json()
-    algorithm_id = data.get('algorithmId')
+    algorithm_id = int(data.get('algorithmId'))
 
     # Update the configuration settings for the recommendation algorithm
     if algorithm_id == 1:
         # Update configuration settings for content-based recommendation algorithm
         # ...
-        return jsonify({'success': True})
+        # Change the recommendation algorithm to content-based
+        app.config['RECOMMENDATION_ALGORITHM'] = 'content-based'
     elif algorithm_id == 2:
         # Update configuration settings for decision tree recommendation algorithm
         # ...
-        return jsonify({'success': True})
+        # Change the recommendation algorithm to decision tree
+        app.config['RECOMMENDATION_ALGORITHM'] = 'decision-tree'
     elif algorithm_id == 3:
         # Update configuration settings for k-NN recommendation algorithm
         # ...
-        return jsonify({'success': True})
+        # Change the recommendation algorithm to k-NN
+        app.config['RECOMMENDATION_ALGORITHM'] = 'k-nn'
     else:
         return jsonify({'success': False})
+
+    # Print out the new value of the recommendation algorithm configuration setting
+    algorithm = app.config['RECOMMENDATION_ALGORITHM']
+
+    print(f"The recommendation algorithm has been changed to {algorithm}")
+
+    return jsonify({'success': True})
 
 # Serve the React.js app
 @app.route("/", defaults={"path": ""})
