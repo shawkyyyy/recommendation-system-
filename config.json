@@ -1,3 +1,6 @@
 {
-    "algorithm": "content_based"
+  "db_name": "slbms",
+  "db_user": "root",
+  "db_password": "123",
+  "db_host": "localhost"
 }
