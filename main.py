@@ -74,7 +74,7 @@ def get_books():
         JOIN genre ON books_genres.genreId = genre.id
         JOIN book_stock ON book_stock.bookId = book.id
         LEFT JOIN reservation ON reservation.bookStockId = book_stock.id
-        WHERE reservation.userId = %s AND book_stock.bookStock > 0
+        WHERE reservation.userId = %s
     """, (user_id,))
     history_data = cursor.fetchall()
 
