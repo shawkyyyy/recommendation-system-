@@ -49,10 +49,10 @@ book_data['category_encoded'] = label_encoder.fit_transform(book_data['category'
 
 
 # Preprocess the dataset
-cm = CountVectorizer().fit_transform(
+model = CountVectorizer()
+cm = model.fit_transform(
     book_data['title'] + ' ' + book_data['author_encoded'].astype(str) + ' ' + book_data['category_encoded'].astype(str))
 cs = cosine_similarity(cm)
-
 # Define the decision tree model
 dt_model = DecisionTreeClassifier()
 
@@ -61,6 +61,7 @@ knn_model = KNeighborsClassifier(n_neighbors=5)
 
 # Split the data into training and testing sets and train the models
 X_train, X_test, y_train, y_test = train_test_split(cm, book_data['category'], test_size=0.2, random_state=42)
+
 dt_model.fit(X_train, y_train)
 knn_model.fit(X_train, y_train)
 
@@ -154,16 +155,15 @@ def get_books():
             last_borrowed_book = borrowing_history[-1]
 
             # Query decision tree model with last_borrowed_book's author, title, and category features
-            query_feature = np.array(
-                [last_borrowed_book['author'], last_borrowed_book['title'], last_borrowed_book['category']]).reshape(1,
-                                                                                                                     -1)
+            query_feature = [last_borrowed_book['author'] + ' ' + last_borrowed_book['title'] + ' ' + last_borrowed_book['category'] + ' ']
+            query_feature = model.transform(query_feature)
+            
             predicted_category = dt_model.predict(query_feature)[0]
 
             # Get recommended book(s) based on predicted category, excluding those already borrowed
             recommended_books = book_data[(book_data['category'] == predicted_category) & (
                 ~book_data['id'].isin([book['id'] for book in borrowing_history]))][
-                ['id', 'title', 'author', 'category', 'edition_number', 'num_pages', 'copywrite_year']].to_dict(
-                'records')
+                ['id', 'title', 'author', 'category', 'edition_number', 'num_pages', 'copywrite_year']].to_dict('records')
 
 
         elif algorithm == 'k-nn':
@@ -174,18 +174,16 @@ def get_books():
 
             # Query k-NN model with last_borrowed_book's author, title, and category features
 
-            query_feature = np.array(
-                [last_borrowed_book['author'], last_borrowed_book['title'], last_borrowed_book['category']]).reshape(1,
-                                                                                                                     -1)
+            query_feature = [last_borrowed_book['author'] + ' ' + last_borrowed_book['title'] + ' ' + last_borrowed_book['category'] + ' ']
 
-            query_feature = cm.transform(query_feature)
+
+            query_feature = model.transform(query_feature)
 
             distances, indices = knn_model.kneighbors(query_feature)
 
             # Get recommended book(s) based on the most similar books, excluding those already borrowed
 
             recommended_books = []
-
             for i in range(1, len(indices[0])):
 
                 book_idx = indices[0][i]
