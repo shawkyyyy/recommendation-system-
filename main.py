@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pymysql
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import KNeighborsClassifier
@@ -41,17 +41,18 @@ JOIN book_stock ON book_stock.bookId = book.id
 LEFT JOIN reservation ON reservation.bookStockId = book_stock.id
 """)
 # Load the book data into a pandas DataFrame
-book_data = pd.DataFrame(cursor.fetchall(), columns=['id', 'title', 'author', 'category', 'edition_number', 'num_pages', 'copywrite_year'])
+book_data = pd.DataFrame(cursor.fetchall(),
+                         columns=['id', 'title', 'author', 'category', 'edition_number', 'num_pages', 'copywrite_year'])
 
 label_encoder = LabelEncoder()
 book_data['author_encoded'] = label_encoder.fit_transform(book_data['author'])
 book_data['category_encoded'] = label_encoder.fit_transform(book_data['category'])
 
-
 # Preprocess the dataset
 model = CountVectorizer()
 cm = model.fit_transform(
-    book_data['title'] + ' ' + book_data['author_encoded'].astype(str) + ' ' + book_data['category_encoded'].astype(str))
+    book_data['title'] + ' ' + book_data['author_encoded'].astype(str) + ' ' + book_data['category_encoded'].astype(
+        str))
 cs = cosine_similarity(cm)
 # Define the decision tree model
 dt_model = DecisionTreeClassifier()
@@ -62,19 +63,58 @@ knn_model = KNeighborsClassifier(n_neighbors=5)
 # Split the data into training and testing sets and train the models
 X_train, X_test, y_train, y_test = train_test_split(cm, book_data['category'], test_size=0.2, random_state=42)
 
+# Define the parameter grid for the decision tree model
+dt_param_grid = {
+    'max_depth': [None, 5, 10, 15],
+    'min_samples_split': [2, 5, 10],
+    'criterion': ['gini', 'entropy']
+}
+# Perform grid search for the decision tree model
+dt_model = DecisionTreeClassifier()
+dt_grid_search = GridSearchCV(dt_model, dt_param_grid, scoring='accuracy', cv=5)
+dt_grid_search.fit(X_train, y_train)
+
+# Get the best decision tree model and its hyperparameters
+best_dt_model = dt_grid_search.best_estimator_
+best_dt_params = dt_grid_search.best_params_
+
+# Define the parameter grid for the k-nearest neighbors model
+knn_param_grid = {
+    'n_neighbors': [3, 5, 7],
+    'weights': ['uniform', 'distance']
+}
+
+# Perform grid search for the k-nearest neighbors model
+knn_model = KNeighborsClassifier()
+knn_grid_search = GridSearchCV(knn_model, knn_param_grid, scoring='accuracy', cv=5)
+knn_grid_search.fit(X_train, y_train)
+
+# Get the best k-nearest neighbors model and its hyperparameters
+best_knn_model = knn_grid_search.best_estimator_
+best_knn_params = knn_grid_search.best_params_
+
+# Train the models with the best hyperparameters
+best_dt_model.fit(X_train, y_train)
+best_knn_model.fit(X_train, y_train)
+
+# Make predictions using the best models
+dt_predictions = best_dt_model.predict(X_test)
+knn_predictions = best_knn_model.predict(X_test)
+
 dt_model.fit(X_train, y_train)
 knn_model.fit(X_train, y_train)
 
+
 def train_models():
     # Test the decision tree model
-    dt_predictions = dt_model.predict(X_test)
+    dt_predictions = best_dt_model.predict(X_test)
     dt_accuracy = accuracy_score(y_test, dt_predictions)
     dt_precision = precision_score(y_test, dt_predictions, average='weighted')
     dt_recall = recall_score(y_test, dt_predictions, average='weighted')
     dt_f1 = f1_score(y_test, dt_predictions, average='weighted')
 
     # Test the k-NN model
-    knn_predictions = knn_model.predict(X_test)
+    knn_predictions = best_knn_model.predict(X_test)
     knn_accuracy = accuracy_score(y_test, knn_predictions)
     knn_precision = precision_score(y_test, knn_predictions, average='weighted')
     knn_recall = recall_score(y_test, knn_predictions, average='weighted')
@@ -93,8 +133,6 @@ def train_models():
     print(f"Precision: {knn_precision}")
     print(f"Recall: {knn_recall}")
     print(f"F1-score: {knn_f1}\n")
-
-
 
 # Define the API endpoint to get book recommendations
 @app.route('/get_books', methods=['POST'])
@@ -151,57 +189,54 @@ def get_books():
             book_indices = [i for i, _ in sim_scores]
             recommended_books = [book_data.iloc[book_idx].to_dict() for book_idx in book_indices]
         elif algorithm == 'decision-tree':
-            # Get the user's last borrowed book
-            last_borrowed_book = borrowing_history[-1]
+            # Get the unique set of borrowed books from the borrowing history
+            unique_borrowed_books = [dict(t) for t in {tuple(book.items()) for book in borrowing_history}]
 
-            # Query decision tree model with last_borrowed_book's author, title, and category features
-            query_feature = [last_borrowed_book['author'] + ' ' + last_borrowed_book['title'] + ' ' + last_borrowed_book['category'] + ' ']
-            query_feature = model.transform(query_feature)
-            
-            predicted_category = dt_model.predict(query_feature)[0]
+            if unique_borrowed_books:
+                # Get the last borrowed book from the unique set of borrowed books
+                last_borrowed_book = unique_borrowed_books[-1]
 
-            # Get recommended book(s) based on predicted category, excluding those already borrowed
-            recommended_books = book_data[(book_data['category'] == predicted_category) & (
-                ~book_data['id'].isin([book['id'] for book in borrowing_history]))][
-                ['id', 'title', 'author', 'category', 'edition_number', 'num_pages', 'copywrite_year']].to_dict('records')
+                # Query decision tree model with last_borrowed_book's author, title, and category features
+                query_feature = [last_borrowed_book['author'] + ' ' + last_borrowed_book['title'] + ' ' + last_borrowed_book['category'] + ' ']
+                query_feature = model.transform(query_feature)
+
+                predicted_category = dt_model.predict(query_feature)[0]
+
+                # Get recommended book(s) based on predicted category, excluding those already borrowed
+                recommended_books = book_data[(book_data['category'] == predicted_category) & (
+                    ~book_data['id'].isin([book['id'] for book in unique_borrowed_books]))][
+                    ['id', 'title', 'author', 'category', 'edition_number', 'num_pages',
+                     'copywrite_year']].drop_duplicates().head(7).to_dict('records')
 
 
         elif algorithm == 'k-nn':
+            # Get the unique set of borrowed books from the borrowing history
+            unique_borrowed_books = [dict(t) for t in {tuple(book.items()) for book in borrowing_history}]
 
-            # Get the user's last borrowed book
+            if unique_borrowed_books:
+                # Get the last borrowed book from the unique set of borrowed books
+                last_borrowed_book = unique_borrowed_books[-1]
 
-            last_borrowed_book = borrowing_history[-1]
+                # Query k-NN model with last_borrowed_book's author, title, and category features
+                query_feature = [last_borrowed_book['author'] + ' ' + last_borrowed_book['title'] + ' ' + last_borrowed_book['category'] + ' ']
+                query_feature = model.transform(query_feature)
 
-            # Query k-NN model with last_borrowed_book's author, title, and category features
+                distances, indices = knn_model.kneighbors(query_feature)
 
-            query_feature = [last_borrowed_book['author'] + ' ' + last_borrowed_book['title'] + ' ' + last_borrowed_book['category'] + ' ']
+                # Get recommended book(s) based on the most similar books, excluding those already borrowed
+                recommended_books = []
+                for i in range(1, len(indices[0])):
+                    book_idx = indices[0][i]
+                    book_info = book_data.iloc[book_idx]
+                    book_dict = book_info.to_dict()
+                    if book_dict['id'] not in [book['id'] for book in unique_borrowed_books]:
+                        recommended_books.append(book_dict)
 
-
-            query_feature = model.transform(query_feature)
-
-            distances, indices = knn_model.kneighbors(query_feature)
-
-            # Get recommended book(s) based on the most similar books, excluding those already borrowed
-
-            recommended_books = []
-            for i in range(1, len(indices[0])):
-
-                book_idx = indices[0][i]
-
-                book_info = book_data.iloc[book_idx]
-
-                book_dict = book_info.to_dict()
-
-                if book_dict['id'] not in [book['id'] for book in borrowing_history]:
-                    recommended_books.append(book_dict)
-
-            # If no new recommendations are available, recommend popular books instead
-
-            if len(recommended_books) == 0:
-                popular_books = book_data.groupby('id').size().nlargest(5).index.tolist()
-
-                recommended_books = [book_data[book_data['id'] == book_id].to_dict('records')[0] for book_id in
-                                     popular_books]
+                # If no new recommendations are available, recommend popular books instead
+                if len(recommended_books) == 0:
+                    popular_books = book_data.groupby('id').size().nlargest(5).index.tolist()
+                    recommended_books = [book_data[book_data['id'] == book_id].to_dict('records')[0] for book_id in
+                                         popular_books]
 
         # Combine the list of recommended books with the list of borrowed books
         all_books = recommended_books
@@ -220,31 +255,6 @@ def get_books():
             for row in cursor.fetchall()]
         # Return the recommended books
         return jsonify({'books': random_books})
-# Define the API endpoint to update the recommendation algorithm configuration
-@app.route('/update_config', methods=['POST'])
-def update_config():
-    # Parse the JSON request data
-    data = request.get_json()
-    algorithm_id = int(data.get('algorithmId'))
-
-    # Update the configuration settings for the recommendation algorithm
-    if algorithm_id == 1:
-        # Update configuration settings for content-based recommendation algorithm
-        app.config['RECOMMENDATION_ALGORITHM'] = 'content-based'
-    elif algorithm_id == 2:
-        # Update configuration settings for decision tree recommendation algorithm
-        app.config['RECOMMENDATION_ALGORITHM'] = 'decision-tree'
-    elif algorithm_id == 3:
-        # Update configuration settings for k-NN recommendation algorithm
-        app.config['RECOMMENDATION_ALGORITHM'] = 'k-nn'
-    else:
-        return jsonify({'success': False})
-
-    # Print out the new value of the recommendation algorithm configuration setting
-    algorithm = app.config['RECOMMENDATION_ALGORITHM']
-    print(f"The recommendation algorithm has been changed to {algorithm}")
-
-    return jsonify({'success': True})
 
 
 
@@ -258,8 +268,6 @@ def serve(path):
         return app.send_static_file("index.html")
 
 
-
-
 if __name__ == '__main__':
-    train_models() # print decision tree and k-NN model results
-    app.run(debug=True) # start the Flask app
+    train_models()  # print decision tree and k-NN model results
+    app.run(debug=True)  # start the Flask appy
